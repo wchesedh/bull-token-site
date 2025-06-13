@@ -12,10 +12,13 @@ export default function WalletBalance() {
   const { connection } = useConnection();
   const [balance, setBalance] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [dummyAddress, setDummyAddress] = useState('');
 
   useEffect(() => {
     const fetchBalance = async () => {
-      if (!publicKey) {
+      const targetPublicKey = dummyAddress ? new PublicKey(dummyAddress) : publicKey;
+
+      if (!targetPublicKey) {
         setBalance(null);
         setLoading(false);
         return;
@@ -26,15 +29,13 @@ export default function WalletBalance() {
         const mintPublicKey = new PublicKey(MINT_ADDRESS);
         const associatedTokenAccount = getAssociatedTokenAddressSync(
           mintPublicKey,
-          publicKey,
+          targetPublicKey,
           true // allowOwnerOffCurve - if the owner is a PDA
         );
 
-        // Check if the associated token account exists
         const accountInfo = await connection.getAccountInfo(associatedTokenAccount);
 
         if (!accountInfo) {
-          // If account doesn't exist, balance is 0
           setBalance("0");
         } else {
           const tokenBalance = await connection.getTokenAccountBalance(associatedTokenAccount);
@@ -43,26 +44,36 @@ export default function WalletBalance() {
 
       } catch (error) {
         console.error("Error fetching token balance:", error);
-        setBalance("N/A");
+        setBalance("Error");
       } finally {
         setLoading(false);
       }
     };
 
     fetchBalance();
-  }, [publicKey, connection]);
-
-  if (!publicKey) {
-    return <p className="text-gray-500 text-sm">Connect wallet to see token balance.</p>;
-  }
+  }, [publicKey, connection, dummyAddress]);
 
   return (
     <div className="bg-white rounded-xl shadow-md p-6 w-full max-w-xl mx-auto text-center mt-6">
       <h3 className="text-xl font-bold text-gray-800 mb-2">Your Bull Token Balance</h3>
+      <p className="text-gray-500 text-sm mb-2">
+        {publicKey ? `Connected: ${publicKey.toString().slice(0, 4)}...${publicKey.toString().slice(-4)}` : 'Connect wallet to see your balance.'}
+      </p>
+
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Paste dummy wallet address (for testing)"
+          className="w-full p-2 border border-gray-300 rounded-md text-sm"
+          value={dummyAddress}
+          onChange={(e) => setDummyAddress(e.target.value)}
+        />
+      </div>
+
       {loading ? (
         <p className="text-gray-500">Loading balance...</p>
       ) : (
-        <p className="text-2xl font-semibold text-yellow-600">{balance} {MINT_ADDRESS.slice(0,4)}...</p>
+        <p className="text-2xl font-semibold text-yellow-600">{balance} BULL</p>
       )}
     </div>
   );

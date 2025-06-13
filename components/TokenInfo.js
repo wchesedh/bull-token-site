@@ -3,20 +3,10 @@ export default function TokenInfo({ token }) {
 
   return (
     <div className="bg-white rounded-xl shadow-md p-6 w-full max-w-xl mx-auto text-center">
-      {/* ✅ Only render image if token.image exists and is not empty */}
-      {token.image ? (
-        <img src={token.image} alt="Bull Token" className="w-32 h-32 mx-auto mb-4" />
-      ) : (
-        <div className="w-32 h-32 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center text-gray-500">
-          No image
-        </div>
-      )}
-
+      <img src={token.image} alt="Bull Token" className="w-32 h-32 mx-auto mb-4" />
       <h1 className="text-3xl font-bold text-gray-800">{token.name}</h1>
       <h2 className="text-xl text-gray-600 mb-2">({token.symbol})</h2>
-      <p className="text-sm text-gray-500">
-        {token.description !== 'No description found' ? token.description : 'Description not available.'}
-      </p>
+      <p className="text-sm text-gray-500">{token.description}</p>
 
       <div className="mt-6 grid grid-cols-2 gap-4 text-sm text-gray-700">
         <div>
@@ -30,7 +20,7 @@ export default function TokenInfo({ token }) {
       </div>
 
       <p className="mt-6 text-xs text-gray-400">
-        Mint: {token.mint}
+        Mint: BnNFoHtJRaV1grpDxLWm8rhhDRt4vC9arpVGgcCYpump
       </p>
     </div>
   );

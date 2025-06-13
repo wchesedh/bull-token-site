@@ -25,6 +25,9 @@ export default function HomePage() {
       }
     }
 
+    // Track visit
+    fetch('/api/visits', { method: 'POST' }).catch(console.error);
+    
     fetchToken();
   }, []);
 

@@ -9,6 +9,8 @@ const MINT_ADDRESS = 'BnNFoHtJRaV1grpDxLWm8rhhDRt4vC9arpVGgcCYpump'; // Your Bul
 const TOKEN_DECIMALS = 9; // Assuming 9 decimals for your token, adjust if different
 const TEST_CONNECTED_WALLET = '5TKZtq8RZKgo7SNpEUNcbbx8Y65S2pDxSpcmyEhZBp1Y'; // Wallet to connect for testing
 const TEST_DISPLAY_BALANCE_FOR_WALLET = '9BRRVCg7yAZKdgcubYZ5Qr9yUtweU2LYXQqAQmg2vgc'; // Wallet whose balance will be displayed
+const DEFAULT_TRANSACTIONS_PER_PAGE = 10;
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
 export default function WalletBalance() {
   const { publicKey, sendTransaction } = useWallet();
@@ -18,6 +20,11 @@ export default function WalletBalance() {
   const [transactions, setTransactions] = useState([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalTransactions, setTotalTransactions] = useState(0);
+  const [transactionsPerPage, setTransactionsPerPage] = useState(DEFAULT_TRANSACTIONS_PER_PAGE);
+  const [allSignatures, setAllSignatures] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Send token states
   const [recipient, setRecipient] = useState('');
@@ -26,11 +33,76 @@ export default function WalletBalance() {
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
 
+  const fetchAllSignatures = async () => {
+    let targetPublicKey = publicKey;
+    if (publicKey && publicKey.toBase58() === TEST_CONNECTED_WALLET) {
+      targetPublicKey = new PublicKey(TEST_DISPLAY_BALANCE_FOR_WALLET);
+    }
+
+    if (!targetPublicKey) {
+      setAllSignatures([]);
+      setTotalTransactions(0);
+      return;
+    }
+
+    try {
+      const mintPublicKey = new PublicKey(MINT_ADDRESS);
+      const associatedTokenAccount = getAssociatedTokenAddressSync(
+        mintPublicKey,
+        targetPublicKey,
+        true
+      );
+
+      const signatures = await connection.getSignaturesForAddress(
+        associatedTokenAccount,
+        { limit: 1000 } // Adjust this limit based on your needs
+      );
+      setAllSignatures(signatures);
+      setTotalTransactions(signatures.length);
+    } catch (error) {
+      console.error("Error fetching signatures:", error);
+      setAllSignatures([]);
+      setTotalTransactions(0);
+    }
+  };
+
+  const fetchTransactions = async (page = 1) => {
+    if (allSignatures.length === 0) {
+      setTransactions([]);
+      return;
+    }
+
+    setLoadingTransactions(true);
+    try {
+      const startIndex = (page - 1) * transactionsPerPage;
+      const endIndex = startIndex + transactionsPerPage;
+      const pageSignatures = allSignatures.slice(startIndex, endIndex);
+
+      const txDetails = await Promise.all(
+        pageSignatures.map(async (sig) => {
+          const tx = await connection.getTransaction(sig.signature, {
+            maxSupportedTransactionVersion: 0
+          });
+          return {
+            signature: sig.signature,
+            timestamp: sig.blockTime,
+            amount: tx?.meta?.postTokenBalances?.[0]?.uiTokenAmount?.uiAmount || 0,
+            link: `https://solscan.io/tx/${sig.signature}?cluster=mainnet`
+          };
+        })
+      );
+      setTransactions(txDetails);
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+    } finally {
+      setLoadingTransactions(false);
+    }
+  };
+
   useEffect(() => {
     const fetchBalance = async () => {
-      let targetPublicKey = publicKey; // Default to connected wallet
+      let targetPublicKey = publicKey;
 
-      // Override targetPublicKey if TEST_CONNECTED_WALLET is connected
       if (publicKey && publicKey.toBase58() === TEST_CONNECTED_WALLET) {
         targetPublicKey = new PublicKey(TEST_DISPLAY_BALANCE_FOR_WALLET);
       }
@@ -47,7 +119,7 @@ export default function WalletBalance() {
         const associatedTokenAccount = getAssociatedTokenAddressSync(
           mintPublicKey,
           targetPublicKey,
-          true // allowOwnerOffCurve - if the owner is a PDA
+          true
         );
 
         const accountInfo = await connection.getAccountInfo(associatedTokenAccount);
@@ -61,28 +133,7 @@ export default function WalletBalance() {
 
         // Fetch transactions if test wallet is connected
         if (publicKey && publicKey.toBase58() === TEST_CONNECTED_WALLET) {
-          setLoadingTransactions(true);
-          try {
-            const signatures = await connection.getSignaturesForAddress(associatedTokenAccount, { limit: 10 });
-            const txDetails = await Promise.all(
-              signatures.map(async (sig) => {
-                const tx = await connection.getTransaction(sig.signature, {
-                  maxSupportedTransactionVersion: 0
-                });
-                return {
-                  signature: sig.signature,
-                  timestamp: sig.blockTime,
-                  amount: tx?.meta?.postTokenBalances?.[0]?.uiTokenAmount?.uiAmount || 0,
-                  link: `https://solscan.io/tx/${sig.signature}?cluster=mainnet`
-                };
-              })
-            );
-            setTransactions(txDetails);
-          } catch (error) {
-            console.error("Error fetching transactions:", error);
-          } finally {
-            setLoadingTransactions(false);
-          }
+          await fetchAllSignatures();
         }
 
       } catch (error) {
@@ -95,6 +146,23 @@ export default function WalletBalance() {
 
     fetchBalance();
   }, [publicKey, connection]);
+
+  // Reset transactions when wallet disconnects
+  useEffect(() => {
+    if (!publicKey) {
+      setTransactions([]);
+      setTotalTransactions(0);
+      setCurrentPage(1);
+      setAllSignatures([]);
+    }
+  }, [publicKey]);
+
+  // Fetch transactions when page or items per page changes
+  useEffect(() => {
+    if (allSignatures.length > 0) {
+      fetchTransactions(currentPage);
+    }
+  }, [currentPage, transactionsPerPage, allSignatures]);
 
   const handleSendTokens = async () => {
     if (!publicKey) {
@@ -116,7 +184,6 @@ export default function WalletBalance() {
       const mintPublicKey = new PublicKey(MINT_ADDRESS);
       const recipientPublicKey = new PublicKey(recipient);
 
-      // Get associated token accounts
       const fromTokenAccount = getAssociatedTokenAddressSync(
         mintPublicKey,
         publicKey
@@ -126,7 +193,6 @@ export default function WalletBalance() {
         recipientPublicKey
       );
 
-      // Check if sender has an associated token account
       const fromAccountInfo = await connection.getAccountInfo(fromTokenAccount);
       if (!fromAccountInfo) {
         setMessage('You do not have an associated token account for Bull Token.');
@@ -135,28 +201,28 @@ export default function WalletBalance() {
         return;
       }
 
-      // Create transfer instruction
       const transferInstruction = createTransferInstruction(
         fromTokenAccount,
         toTokenAccount,
         publicKey,
-        parseFloat(amount) * (10 ** TOKEN_DECIMALS) // Amount in smallest units
+        parseFloat(amount) * (10 ** TOKEN_DECIMALS)
       );
 
-      // Get recent blockhash
       const { blockhash } = await connection.getLatestBlockhash();
 
-      // Create a new Transaction object
       const transaction = new Transaction().add(transferInstruction);
       transaction.feePayer = publicKey;
       transaction.recentBlockhash = blockhash;
 
-      // Send transaction using wallet adapter
       const signature = await sendTransaction(transaction, connection, { skipPreflight: false });
 
       setMessage(`Transaction sent: ${signature}`);
-      setAmount(''); // Clear amount field
-      // Optionally, clear recipient too: setRecipient('');
+      setAmount('');
+      // Refresh transactions after sending
+      if (publicKey.toBase58() === TEST_CONNECTED_WALLET) {
+        await fetchAllSignatures();
+        setCurrentPage(1);
+      }
     } catch (error) {
       console.error("Error sending tokens:", error);
       setMessage(`Failed to send tokens: ${error.message}`);
@@ -165,6 +231,15 @@ export default function WalletBalance() {
       setSending(false);
     }
   };
+
+  const filteredTransactions = transactions.filter(tx => {
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      tx.signature.toLowerCase().includes(searchLower) ||
+      tx.amount.toString().includes(searchLower) ||
+      new Date(tx.timestamp * 1000).toLocaleString().toLowerCase().includes(searchLower)
+    );
+  });
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -191,34 +266,118 @@ export default function WalletBalance() {
             {loadingTransactions ? (
               <p className="text-warm-gray text-center">Loading transactions...</p>
             ) : transactions.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="min-w-full bg-transparent text-warm-gray">
-                  <thead>
-                    <tr className="border-b border-gold">
-                      <th className="py-2 px-4 text-left text-light-gold">Date</th>
-                      <th className="py-2 px-4 text-left text-light-gold">Amount</th>
-                      <th className="py-2 px-4 text-left text-light-gold">Link</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {transactions.map((tx) => (
-                      <tr key={tx.signature} className="border-b border-warm-gray/30 hover:bg-dark-red/20 transition">
-                        <td className="py-2 px-4 text-sm">
-                          {new Date(tx.timestamp * 1000).toLocaleString().split(', ')[0]}
-                        </td>
-                        <td className="py-2 px-4 text-sm font-semibold text-light-gold">
-                          {tx.amount} BULL
-                        </td>
-                        <td className="py-2 px-4 text-sm">
-                          <a href={tx.link} target="_blank" rel="noopener noreferrer" className="text-gold hover:underline">
-                            View
-                          </a>
-                        </td>
+              <>
+                <div className="flex justify-between items-center mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-warm-gray">Show</span>
+                    <select
+                      value={transactionsPerPage}
+                      onChange={(e) => {
+                        setTransactionsPerPage(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="bg-dark-brown border border-gold text-light-gold rounded-md px-2 py-1 text-sm focus:outline-none focus:border-gold"
+                    >
+                      {PAGE_SIZE_OPTIONS.map(size => (
+                        <option key={size} value={size}>{size}</option>
+                      ))}
+                    </select>
+                    <span className="text-warm-gray">per page</span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search transactions..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="bg-dark-brown border border-gold text-light-gold rounded-md pl-8 pr-4 py-1 text-sm focus:outline-none focus:border-gold w-48"
+                    />
+                    <svg
+                      className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-warm-gray"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full bg-transparent text-warm-gray">
+                    <thead>
+                      <tr className="border-b border-gold">
+                        <th className="py-2 px-4 text-left text-light-gold">Date</th>
+                        <th className="py-2 px-4 text-left text-light-gold">Amount</th>
+                        <th className="py-2 px-4 text-left text-light-gold">Link</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {filteredTransactions.map((tx) => (
+                        <tr key={tx.signature} className="border-b border-warm-gray/30 hover:bg-dark-red/20 transition">
+                          <td className="py-2 px-4 text-sm">
+                            {new Date(tx.timestamp * 1000).toLocaleString().split(', ')[0]}
+                          </td>
+                          <td className="py-2 px-4 text-sm font-semibold text-light-gold">
+                            {tx.amount} BULL
+                          </td>
+                          <td className="py-2 px-4 text-sm">
+                            <a href={tx.link} target="_blank" rel="noopener noreferrer" className="text-gold hover:underline">
+                              View
+                            </a>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="flex items-center justify-center gap-4 mt-4">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className={`p-2 rounded-md font-semibold ${
+                      currentPage === 1
+                        ? 'bg-warm-gray text-dark-brown cursor-not-allowed'
+                        : 'bg-dark-red text-light-gold hover:bg-gold hover:text-dark-brown'
+                    }`}
+                    aria-label="Previous page"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-warm-gray">Page</span>
+                    <select
+                      value={currentPage}
+                      onChange={(e) => setCurrentPage(Number(e.target.value))}
+                      className="bg-dark-brown border border-gold text-light-gold rounded-md px-2 py-1 text-sm focus:outline-none focus:border-gold"
+                    >
+                      {Array.from({ length: Math.ceil(totalTransactions / transactionsPerPage) }, (_, i) => i + 1).map(page => (
+                        <option key={page} value={page}>{page}</option>
+                      ))}
+                    </select>
+                    <span className="text-warm-gray">of {Math.ceil(totalTransactions / transactionsPerPage)}</span>
+                  </div>
+                  <button
+                    onClick={() => setCurrentPage(prev => prev + 1)}
+                    disabled={currentPage >= Math.ceil(totalTransactions / transactionsPerPage)}
+                    className={`p-2 rounded-md font-semibold ${
+                      currentPage >= Math.ceil(totalTransactions / transactionsPerPage)
+                        ? 'bg-warm-gray text-dark-brown cursor-not-allowed'
+                        : 'bg-dark-red text-light-gold hover:bg-gold hover:text-dark-brown'
+                    }`}
+                    aria-label="Next page"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+              </>
             ) : (
               <p className="text-warm-gray text-center">No recent transactions found</p>
             )}

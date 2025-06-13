@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import TokenInfo from '../components/TokenInfo';
 import WalletProvider from '../components/WalletProvider';
+import WalletBalance from '../components/WalletBalance';
 // import WalletConnect from '../components/WalletConnect';
 
 export default function HomePage() {
@@ -37,7 +38,10 @@ export default function HomePage() {
           {loading ? (
             <p className="text-gray-500">Loading token data...</p>
           ) : (
-            <TokenInfo token={tokenData} />
+            <>
+              <TokenInfo token={tokenData} />
+              <WalletBalance />
+            </>
           )}
         </main>
         <Footer />

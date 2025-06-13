@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { Metaplex } from '@metaplex-foundation/js';
 
-const RPC_URL = 'https://mainnet.helius-rpc.com/?api-key=e7b21d8b-e18f-4eb8-b122-f5f0deb7a4e0';
+const RPC_URL = 'https://mainnet.helius-rpc.com/?api-key=c0f65256-6df0-4e3c-aa5e-68dbb50ece42';
 const MINT_ADDRESS = 'BnNFoHtJRaV1grpDxLWm8rhhDRt4vC9arpVGgcCYpump';
 
 export async function GET() {

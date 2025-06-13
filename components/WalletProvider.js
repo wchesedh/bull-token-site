@@ -11,7 +11,7 @@ require('@solana/wallet-adapter-react-ui/styles.css');
 export default function WalletProvider({ children }) {
   // Set up network
   const network = WalletAdapterNetwork.Mainnet;
-  const endpoint = useMemo(() => clusterApiUrl(network), [network]);
+  const endpoint = useMemo(() => 'https://mainnet.helius-rpc.com/?api-key=c0f65256-6df0-4e3c-aa5e-68dbb50ece42', []);
 
   // Set up wallets
   const wallets = useMemo(

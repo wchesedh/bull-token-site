@@ -24,7 +24,8 @@ export async function GET() {
 
     // Get metadata with fallbacks
     const metadata = nft.json || {};
-    const image = metadata.image || '/images/default-token.png';
+    //const image = metadata.image || '/images/default-token.png';
+     const image = '/images/default-token.png' || '/images/default-token.png';
     const description = metadata.description || 'A bullisch journey';
 
     return NextResponse.json({

@@ -6,7 +6,6 @@ import Footer from '../components/Footer';
 import TokenInfo from '../components/TokenInfo';
 import WalletProvider from '../components/WalletProvider';
 import WalletBalance from '../components/WalletBalance';
-import SendToken from '../components/SendToken';
 // import WalletConnect from '../components/WalletConnect';
 
 export default function HomePage() {
@@ -42,7 +41,6 @@ export default function HomePage() {
             <>
               <TokenInfo token={tokenData} />
               <WalletBalance />
-              <SendToken />
             </>
           )}
         </main>

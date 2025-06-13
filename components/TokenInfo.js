@@ -11,11 +11,11 @@ export default function TokenInfo({ token }) {
       <div className="mt-6 grid grid-cols-2 gap-4 text-sm text-gray-700">
         <div>
           <p className="font-semibold">Total Supply</p>
-          <p>Coming Soon</p>
+          <p>{token.totalSupply}</p>
         </div>
         <div>
           <p className="font-semibold">Holders</p>
-          <p>Coming Soon</p>
+          <p>{token.holders}</p>
         </div>
       </div>
 

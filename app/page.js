@@ -29,7 +29,7 @@ export default function HomePage() {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-grow bg-gradient-to-br from-yellow-100 to-red-200 flex flex-col items-center justify-center p-4">
-        <h1 className="text-4xl font-bold mb-6 text-center">🐂 Bull Token Dashboard</h1>
+        <h1 className="text-4xl font-bold mb-6 text-center">🐂 Bull Token</h1>
         {loading ? (
           <p className="text-gray-500">Loading token data...</p>
         ) : (

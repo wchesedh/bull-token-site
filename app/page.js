@@ -33,7 +33,7 @@ export default function HomePage() {
       <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-grow bg-gradient-to-br from-dark-brown to-dark-red flex flex-col items-center justify-center p-4">
-          <h1 className="text-4xl font-bold mb-6 text-center text-gold">🐂 Bull Token Dashboard</h1>
+          <h1 className="text-4xl font-bold mb-6 text-center text-gold">🐂 Bulls Dashboard</h1>
           {/* <WalletConnect /> */}
           {loading ? (
             <div className="flex flex-col items-center justify-center py-4">

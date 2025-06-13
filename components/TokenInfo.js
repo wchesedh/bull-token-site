@@ -1,6 +1,3 @@
-// components/TokenInfo.js
-import React from 'react';
-
 export default function TokenInfo({ token }) {
   if (!token) return <p className="text-red-500">Token data unavailable</p>;
 
@@ -10,7 +7,21 @@ export default function TokenInfo({ token }) {
       <h1 className="text-3xl font-bold text-gray-800">{token.name}</h1>
       <h2 className="text-xl text-gray-600 mb-2">({token.symbol})</h2>
       <p className="text-sm text-gray-500">{token.description}</p>
-      <p className="mt-4 text-xs text-gray-400">Mint: BnNFoHtJRaV1grpDxLWm8rhhDRt4vC9arpVGgcCYpump</p>
+
+      <div className="mt-6 grid grid-cols-2 gap-4 text-sm text-gray-700">
+        <div>
+          <p className="font-semibold">Total Supply</p>
+          <p>Coming Soon</p>
+        </div>
+        <div>
+          <p className="font-semibold">Holders</p>
+          <p>Coming Soon</p>
+        </div>
+      </div>
+
+      <p className="mt-6 text-xs text-gray-400">
+        Mint: BnNFoHtJRaV1grpDxLWm8rhhDRt4vC9arpVGgcCYpump
+      </p>
     </div>
   );
 }

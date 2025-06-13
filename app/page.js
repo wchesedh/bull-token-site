@@ -1,7 +1,8 @@
-// app/page.js
 'use client';
 
 import { useEffect, useState } from 'react';
+import Header from '../components/Header';
+import Footer from '../components/Footer';
 import TokenInfo from '../components/TokenInfo';
 
 export default function HomePage() {
@@ -25,13 +26,17 @@ export default function HomePage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-yellow-100 to-red-200 flex flex-col items-center justify-center p-4">
-      <h1 className="text-4xl font-bold mb-6 text-center">🐂 Bull Token Dashboard</h1>
-      {loading ? (
-        <p className="text-gray-500">Loading token data...</p>
-      ) : (
-        <TokenInfo token={tokenData} />
-      )}
-    </main>
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <main className="flex-grow bg-gradient-to-br from-yellow-100 to-red-200 flex flex-col items-center justify-center p-4">
+        <h1 className="text-4xl font-bold mb-6 text-center">🐂 Bull Token Dashboard</h1>
+        {loading ? (
+          <p className="text-gray-500">Loading token data...</p>
+        ) : (
+          <TokenInfo token={tokenData} />
+        )}
+      </main>
+      <Footer />
+    </div>
   );
 }

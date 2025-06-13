@@ -252,7 +252,7 @@ export default function WalletBalance() {
             </p>
 
             {loading ? (
-              <p className="text-warm-gray">Loading balance...</p>
+              <p className="text-warm-gray">Loading token data...</p>
             ) : (
               <p className="text-2xl font-semibold text-light-gold">{balance} BULL</p>
             )}

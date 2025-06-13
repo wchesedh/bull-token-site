@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { Metaplex } from '@metaplex-foundation/js';
 
-const RPC_URL = 'https://mainnet.helius-rpc.com/?api-key=e7b21d8b-e18f-4eb8-b122-f5f0deb7a4e0';
+const RPC_URL = process.env.RPC_URL;
 const MINT_ADDRESS = 'BnNFoHtJRaV1grpDxLWm8rhhDRt4vC9arpVGgcCYpump';
 
 export async function GET() {
@@ -11,14 +11,17 @@ export async function GET() {
     const metaplex = new Metaplex(connection);
     const mintPublicKey = new PublicKey(MINT_ADDRESS);
 
-    // ✅ Get metadata using Metaplex
-    const nft = await metaplex.nfts().findByMint({ mintAddress: mintPublicKey });
+    // 🔍 Fetch NFT metadata and ensure JSON is loaded
+    const nft = await metaplex.nfts().findByMint({ mintAddress: mintPublicKey, loadJsonMetadata: true });
 
-    // ✅ Get total supply
+    console.log("📦 NFT metadata URI:", nft.uri);
+    console.log("🧾 JSON metadata content:", nft.json);
+
+    // 🧮 Total supply
     const supplyInfo = await connection.getTokenSupply(mintPublicKey);
     const totalSupply = supplyInfo?.value?.uiAmountString || 'N/A';
 
-    // ✅ Get non-zero token holder accounts
+    // 👥 Count holders with non-zero balances
     const largestAccounts = await connection.getTokenLargestAccounts(mintPublicKey);
     const holders = largestAccounts?.value?.filter(acc => parseFloat(acc.uiAmount) > 0).length || 0;
 

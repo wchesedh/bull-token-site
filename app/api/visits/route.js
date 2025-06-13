@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
-// Use /tmp directory for Vercel compatibility
-const VISITS_FILE = path.join('/tmp', 'visits.json');
+const VISITS_FILE = path.join(process.cwd(), 'data', 'visits.json');
+
+// Ensure the data directory exists
+if (!fs.existsSync(path.join(process.cwd(), 'data'))) {
+  fs.mkdirSync(path.join(process.cwd(), 'data'));
+}
 
 // Initialize visits file if it doesn't exist
 if (!fs.existsSync(VISITS_FILE)) {
@@ -21,11 +25,7 @@ export async function GET() {
 
 export async function POST(request) {
   try {
-    let data = { visits: [] };
-    if (fs.existsSync(VISITS_FILE)) {
-      data = JSON.parse(fs.readFileSync(VISITS_FILE, 'utf8'));
-    }
-    
+    const data = JSON.parse(fs.readFileSync(VISITS_FILE, 'utf8'));
     const visit = {
       timestamp: new Date().toISOString(),
       userAgent: request.headers.get('user-agent'),

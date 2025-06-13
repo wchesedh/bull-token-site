@@ -88,33 +88,33 @@ export default function SendToken() {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-md p-6 w-full max-w-xl mx-auto text-center mt-6">
-      <h3 className="text-xl font-bold text-gray-800 mb-2">Send Bull Tokens</h3>
+    <div className="bg-dark-brown rounded-xl shadow-lg p-6 w-full max-w-xl mx-auto text-center mt-6 border border-gold">
+      <h3 className="text-xl font-bold text-gold mb-2">Send Bull Tokens</h3>
       <div className="space-y-4">
         <input
           type="text"
           placeholder="Recipient Wallet Address"
-          className="w-full p-2 border border-gray-300 rounded-md text-sm"
+          className="w-full p-2 border border-warm-gray bg-transparent text-light-gold placeholder-warm-gray rounded-md text-sm outline-none focus:border-gold transition"
           value={recipient}
           onChange={(e) => setRecipient(e.target.value)}
         />
         <input
           type="number"
           placeholder="Amount"
-          className="w-full p-2 border border-gray-300 rounded-md text-sm"
+          className="w-full p-2 border border-warm-gray bg-transparent text-light-gold placeholder-warm-gray rounded-md text-sm outline-none focus:border-gold transition"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
         />
         <button
           onClick={handleSendTokens}
           disabled={loading || !publicKey}
-          className={`w-full py-2 px-4 rounded-md font-bold transition ${loading || !publicKey ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-yellow-500 text-brown-800 hover:bg-yellow-600'}`}
+          className={`w-full py-2 px-4 rounded-md font-bold transition ${loading || !publicKey ? 'bg-warm-gray text-dark-brown cursor-not-allowed' : 'bg-dark-red text-light-gold hover:bg-gold hover:text-dark-brown'}`}
         >
           {loading ? 'Sending...' : 'Send Tokens'}
         </button>
       </div>
       {message && (
-        <p className={`mt-4 text-sm ${isError ? 'text-red-500' : 'text-green-600'}`}>{message}</p>
+        <p className={`mt-4 text-sm ${isError ? 'text-red-400' : 'text-green-400'}`}>{message}</p>
       )}
     </div>
   );

@@ -1,0 +1,172 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useConnection } from '@solana/wallet-adapter-react';
+import { PublicKey } from '@solana/web3.js';
+
+const MINT_ADDRESS = 'BnNFoHtJRaV1grpDxLWm8rhhDRt4vC9arpVGgcCYpump';
+const HOLDERS_PER_PAGE = 10;
+const TOKEN_PRICE = 0.0001; // This should match the price in the API
+
+export default function CommunityStats() {
+  const { connection } = useConnection();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalHolders: 0,
+    newHolders24h: 0,
+    activeHolders24h: 0,
+    allHolders: []
+  });
+  const [copiedAddress, setCopiedAddress] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const handleCopy = (address) => {
+    navigator.clipboard.writeText(address);
+    setCopiedAddress(address);
+    setTimeout(() => setCopiedAddress(null), 2000);
+  };
+
+  const formatNumber = (num) => {
+    return new Intl.NumberFormat('en-US').format(num);
+  };
+
+  const formatUSD = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount * TOKEN_PRICE);
+  };
+
+  useEffect(() => {
+    const fetchCommunityStats = async () => {
+      try {
+        setLoading(true);
+        const mintPublicKey = new PublicKey(MINT_ADDRESS);
+
+        // Get token data from our API
+        const tokenRes = await fetch('/api/get-token');
+        const tokenData = await tokenRes.json();
+        
+        setStats({
+          totalHolders: tokenData.holders,
+          newHolders24h: Math.floor(tokenData.holders * 0.1), // Placeholder - should be calculated based on 24h data
+          activeHolders24h: Math.floor(tokenData.holders * 0.3), // Placeholder - should be calculated based on 24h data
+          allHolders: tokenData.allHolders || []
+        });
+      } catch (error) {
+        console.error('Error fetching community stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCommunityStats();
+  }, [connection]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(stats.allHolders.length / HOLDERS_PER_PAGE);
+  const startIndex = (currentPage - 1) * HOLDERS_PER_PAGE;
+  const endIndex = startIndex + HOLDERS_PER_PAGE;
+  const currentHolders = stats.allHolders.slice(startIndex, endIndex);
+
+  if (loading) {
+    return (
+      <div className="bg-dark-brown rounded-xl shadow-lg p-6 w-full max-w-xl mx-auto text-center border border-gold mt-6">
+        <div className="animate-pulse">
+          <div className="h-4 bg-dark-red/30 rounded w-3/4 mx-auto mb-4"></div>
+          <div className="h-4 bg-dark-red/30 rounded w-1/2 mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-dark-brown rounded-xl shadow-lg p-6 w-full max-w-xl mx-auto text-center border border-gold mt-6">
+      <h2 className="text-xl font-bold text-gold mb-6">Community Stats</h2>
+      
+      {/* Holder Statistics */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="bg-dark-red/30 p-3 rounded-lg">
+          <p className="text-xs text-warm-gray mb-1">Total Holders</p>
+          <p className="text-lg font-semibold text-light-gold">{formatNumber(stats.totalHolders)}</p>
+        </div>
+        <div className="bg-dark-red/30 p-3 rounded-lg">
+          <p className="text-xs text-warm-gray mb-1">New (24h)</p>
+          <p className="text-lg font-semibold text-light-gold">{formatNumber(stats.newHolders24h)}</p>
+        </div>
+        <div className="bg-dark-red/30 p-3 rounded-lg">
+          <p className="text-xs text-warm-gray mb-1">Active (24h)</p>
+          <p className="text-lg font-semibold text-light-gold">{formatNumber(stats.activeHolders24h)}</p>
+        </div>
+      </div>
+
+      {/* All Holders */}
+      <div>
+        <h3 className="text-lg font-semibold text-gold mb-3">Token Holders</h3>
+        <div className="space-y-2 mb-4">
+          {currentHolders.map((holder, index) => (
+            <div key={index} className="bg-dark-red/30 p-2 rounded-lg flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <span className="text-warm-gray text-sm">
+                  {holder.owner.slice(0, 4)}...{holder.owner.slice(-4)}
+                </span>
+                <button
+                  onClick={() => handleCopy(holder.owner)}
+                  className="text-gold hover:text-light-gold transition-colors relative"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  {copiedAddress === holder.owner && (
+                    <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-dark-red text-gold px-2 py-1 rounded text-xs whitespace-nowrap">
+                      Copied!
+                    </span>
+                  )}
+                </button>
+              </div>
+              <div className="text-right">
+                <p className="text-light-gold font-semibold">{formatNumber(holder.uiAmount)}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex justify-center gap-2 mt-4">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1 rounded bg-dark-red/30 text-gold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-dark-red/50 transition-colors"
+            >
+              Previous
+            </button>
+            <span className="px-3 py-1 text-gold">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 rounded bg-dark-red/30 text-gold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-dark-red/50 transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+} 

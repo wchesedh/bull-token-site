@@ -53,12 +53,28 @@ export default function WalletBalance() {
         true
       );
 
-      const signatures = await connection.getSignaturesForAddress(
-        associatedTokenAccount,
-        { limit: 1000 } // Adjust this limit based on your needs
-      );
-      setAllSignatures(signatures);
-      setTotalTransactions(signatures.length);
+      let allSigs = [];
+      let lastSig = undefined;
+      let hasMore = true;
+
+      while (hasMore) {
+        const signatures = await connection.getSignaturesForAddress(
+          associatedTokenAccount,
+          { limit: 1000, before: lastSig }
+        );
+
+        if (signatures.length === 0) {
+          hasMore = false;
+        } else {
+          allSigs.push(...signatures);
+          lastSig = signatures[signatures.length - 1].signature;
+          // Optional: Add a small delay to avoid hitting RPC rate limits too hard
+          // await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+      
+      setAllSignatures(allSigs);
+      setTotalTransactions(allSigs.length);
     } catch (error) {
       console.error("Error fetching signatures:", error);
       setAllSignatures([]);
@@ -85,7 +101,7 @@ export default function WalletBalance() {
           });
           return {
             signature: sig.signature,
-            timestamp: tx?.blockTime,
+            timestamp: tx?.blockTime || null,
             amount: tx?.meta?.postTokenBalances?.[0]?.uiTokenAmount?.uiAmount || 0,
             link: `https://solscan.io/tx/${sig.signature}?cluster=mainnet`
           };
@@ -131,7 +147,7 @@ export default function WalletBalance() {
           setBalance(tokenBalance.value.uiAmountString);
         }
 
-        // Fetch transfers if test wallet is connected
+        // Fetch transactions if test wallet is connected
         if (publicKey && publicKey.toBase58() === TEST_CONNECTED_WALLET) {
           await fetchAllSignatures();
         }
@@ -262,10 +278,9 @@ export default function WalletBalance() {
       case 'transfers':
         return (
           <div className="bg-dark-brown rounded-xl shadow-lg p-6 w-full max-w-xl mx-auto border border-gold">
-            <h3 className="text-xl font-bold text-gold mb-4 text-center">Recent Bull Token Transfers</h3>
             {loadingTransactions ? (
               <p className="text-warm-gray text-center">Loading transfers...</p>
-            ) : filteredTransactions.length > 0 ? (
+            ) : (
               <>
                 <div className="flex justify-between items-center mb-4">
                   <div className="flex items-center gap-2">
@@ -306,34 +321,39 @@ export default function WalletBalance() {
                     </svg>
                   </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full bg-transparent text-warm-gray">
-                    <thead>
-                      <tr className="border-b border-gold">
-                        <th className="py-2 px-4 text-left text-light-gold">Date</th>
-                        <th className="py-2 px-4 text-left text-light-gold">Amount</th>
-                        <th className="py-2 px-4 text-left text-light-gold">Link</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredTransactions.map((tx) => (
-                        <tr key={tx.signature} className="border-b border-warm-gray/30 hover:bg-dark-red/20 transition">
-                          <td className="py-2 px-4 text-sm">
-                            {new Date(tx.timestamp * 1000).toLocaleString().split(', ')[0]}
-                          </td>
-                          <td className="py-2 px-4 text-sm font-semibold text-light-gold">
-                            {tx.amount} BULL
-                          </td>
-                          <td className="py-2 px-4 text-sm">
-                            <a href={tx.link} target="_blank" rel="noopener noreferrer" className="text-gold hover:underline">
-                              View
-                            </a>
-                          </td>
+                {filteredTransactions.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full bg-transparent text-warm-gray">
+                      <thead>
+                        <tr className="border-b border-gold">
+                          <th className="py-2 px-4 text-left text-light-gold">Date</th>
+                          <th className="py-2 px-4 text-left text-light-gold">Amount</th>
+                          <th className="py-2 px-4 text-left text-light-gold">Link</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {filteredTransactions.map((tx) => (
+                          <tr key={tx.signature} className="border-b border-warm-gray/30 hover:bg-dark-red/20 transition">
+                            <td className="py-2 px-4 text-sm">
+                              {tx.timestamp ? new Date(tx.timestamp * 1000).toLocaleString().split(', ')[0] : 'N/A'}
+                            </td>
+                            <td className="py-2 px-4 text-sm font-semibold text-light-gold">
+                              {tx.amount} BULL
+                            </td>
+                            <td className="py-2 px-4 text-sm">
+                              <a href={tx.link} target="_blank" rel="noopener noreferrer" className="text-gold hover:underline">
+                                View
+                              </a>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-warm-gray text-center mt-4">No recent transfers found</p>
+                )}
+                
                 <div className="flex items-center justify-center gap-4 mt-4">
                   <button
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
@@ -378,22 +398,7 @@ export default function WalletBalance() {
                   </button>
                 </div>
               </>
-            ) : (
-              <p className="text-warm-gray text-center">No recent transfers found</p>
             )}
-          </div>
-        );
-
-      case 'transactions':
-        return (
-          <div className="bg-dark-brown rounded-xl shadow-lg p-6 w-full max-w-xl mx-auto border border-gold text-center">
-            <h3 className="text-xl font-bold text-gold mb-4">All Wallet Transactions</h3>
-            <p className="text-warm-gray mb-4">
-              This tab will display all your wallet's transactions (not just token transfers).
-            </p>
-            <p className="text-sm text-warm-gray">
-              (Feature under development. Fetching all transactions from the blockchain is resource-intensive and may require a dedicated backend service for optimal performance.)
-            </p>
           </div>
         );
 
@@ -441,35 +446,33 @@ export default function WalletBalance() {
 
   return (
     <div className="w-full max-w-xl mx-auto mt-6">
-      <div className="flex justify-center border-b border-gold mb-4">
+      <div className="flex border-b border-gold mb-6">
         <button
           onClick={() => setActiveTab('dashboard')}
-          className={`px-4 py-2 text-sm font-semibold ${
-            activeTab === 'dashboard' ? 'text-gold border-b-2 border-gold' : 'text-warm-gray hover:text-light-gold'
+          className={`flex-1 py-2 px-4 text-center font-semibold ${
+            activeTab === 'dashboard'
+              ? 'text-gold border-b-2 border-gold'
+              : 'text-warm-gray hover:text-light-gold'
           }`}
         >
           Dashboard
         </button>
         <button
           onClick={() => setActiveTab('transfers')}
-          className={`px-4 py-2 text-sm font-semibold ${
-            activeTab === 'transfers' ? 'text-gold border-b-2 border-gold' : 'text-warm-gray hover:text-light-gold'
+          className={`flex-1 py-2 px-4 text-center font-semibold ${
+            activeTab === 'transfers'
+              ? 'text-gold border-b-2 border-gold'
+              : 'text-warm-gray hover:text-light-gold'
           }`}
         >
           Transfers
         </button>
         <button
-          onClick={() => setActiveTab('transactions')}
-          className={`px-4 py-2 text-sm font-semibold ${
-            activeTab === 'transactions' ? 'text-gold border-b-2 border-gold' : 'text-warm-gray hover:text-light-gold'
-          }`}
-        >
-          Transactions
-        </button>
-        <button
           onClick={() => setActiveTab('send')}
-          className={`px-4 py-2 text-sm font-semibold ${
-            activeTab === 'send' ? 'text-gold border-b-2 border-gold' : 'text-warm-gray hover:text-light-gold'
+          className={`flex-1 py-2 px-4 text-center font-semibold ${
+            activeTab === 'send'
+              ? 'text-gold border-b-2 border-gold'
+              : 'text-warm-gray hover:text-light-gold'
           }`}
         >
           Send

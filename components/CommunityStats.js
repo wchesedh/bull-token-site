@@ -7,6 +7,7 @@ import { FaCopy } from 'react-icons/fa';
 
 const MINT_ADDRESS = 'BnNFoHtJRaV1grpDxLWm8rhhDRt4vC9arpVGgcCYpump';
 const HOLDERS_PER_PAGE = 10;
+const REFRESH_INTERVAL = 60000; // 60 seconds
 
 export default function CommunityStats() {
   const { connection } = useConnection();
@@ -37,15 +38,15 @@ export default function CommunityStats() {
         if (!tokenRes.ok) {
           throw new Error(`Failed to fetch token data: ${tokenRes.statusText}`);
         }
-        const tokenData = await tokenRes.json();
-        console.log('API Token data received:', tokenData); // Debug log for API response
+        const data = await tokenRes.json();
+        console.log('API Token data received:', data); // Debug log for API response
 
-        if (!tokenData.allHolders) {
+        if (!data.allHolders) {
           throw new Error('No holder data available from API');
         }
 
         // Filter out the Token Program ID if it somehow slipped through (redundant but safe)
-        const filteredAndSortedHolders = [...tokenData.allHolders]
+        const filteredAndSortedHolders = [...data.allHolders]
           .filter(holder => holder.owner !== 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' && parseFloat(holder.uiAmount) > 0)
           .sort((a, b) => parseFloat(b.uiAmount) - parseFloat(a.uiAmount));
 
@@ -68,8 +69,15 @@ export default function CommunityStats() {
       }
     };
 
+    // Initial fetch
     fetchCommunityStats();
-  }, []);
+
+    // Set up polling
+    const intervalId = setInterval(fetchCommunityStats, REFRESH_INTERVAL);
+
+    // Cleanup interval on component unmount
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array means this effect runs once on mount and cleans up on unmount
 
   // Calculate pagination
   const totalPages = Math.ceil(stats.allHolders.length / HOLDERS_PER_PAGE);

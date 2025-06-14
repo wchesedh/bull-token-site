@@ -1,11 +1,48 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
-export default function TokenInfo({ token, isLoading }) {
+export default function TokenInfo({ token: initialToken, isLoading }) {
   const [copied, setCopied] = useState(false);
+  const [token, setToken] = useState(initialToken);
+  const [loading, setLoading] = useState(isLoading);
+  const [error, setError] = useState(null);
 
-  if (isLoading) {
+  useEffect(() => {
+    setToken(initialToken);
+    setLoading(isLoading);
+  }, [initialToken, isLoading]);
+
+  useEffect(() => {
+    const fetchTokenData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch('/api/get-token');
+        if (!res.ok) {
+          throw new Error(`Failed to fetch token data: ${res.statusText}`);
+        }
+        const data = await res.json();
+        setToken(data);
+      } catch (err) {
+        console.error("Error fetching token data:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Initial fetch
+    fetchTokenData();
+
+    // Set up polling (e.g., every 60 seconds)
+    const intervalId = setInterval(fetchTokenData, 60000); 
+
+    // Cleanup interval on component unmount
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array means this effect runs once on mount and cleans up on unmount
+
+  if (loading) {
     return (
       <div className="bg-dark-brown rounded-xl shadow-lg p-6 w-full max-w-xl mx-auto text-center border border-gold animate-pulse">
         <div className="relative">
@@ -58,11 +95,11 @@ export default function TokenInfo({ token, isLoading }) {
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="bg-dark-red/30 p-3 rounded-lg">
           <p className="text-xs text-warm-gray mb-1">Total Supply</p>
-          <p className="text-lg font-semibold text-light-gold">{token.totalSupply}</p>
+          <p className="text-sm md:text-lg font-semibold text-light-gold break-words">{token.totalSupply}</p>
         </div>
         <div className="bg-dark-red/30 p-3 rounded-lg">
           <p className="text-xs text-warm-gray mb-1">Holders</p>
-          <p className="text-lg font-semibold text-light-gold">{token.holders}</p>
+          <p className="text-sm md:text-lg font-semibold text-light-gold break-words">{token.holders}</p>
         </div>
       </div>
 

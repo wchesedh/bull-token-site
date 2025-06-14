@@ -35,7 +35,12 @@ export default function WalletBalance() {
 
   const fetchAllSignatures = async () => {
     let targetPublicKey = publicKey;
-    if (publicKey && publicKey.toBase58() === TEST_CONNECTED_WALLET) {
+    // If no wallet connected, but TEST_DISPLAY_BALANCE_FOR_WALLET is set, use it.
+    if (!publicKey && TEST_DISPLAY_BALANCE_FOR_WALLET) {
+      targetPublicKey = new PublicKey(TEST_DISPLAY_BALANCE_FOR_WALLET);
+    }
+    // If a test wallet is connected, override with TEST_DISPLAY_BALANCE_FOR_WALLET for display
+    else if (publicKey && publicKey.toBase58() === TEST_CONNECTED_WALLET) {
       targetPublicKey = new PublicKey(TEST_DISPLAY_BALANCE_FOR_WALLET);
     }
 
@@ -147,7 +152,8 @@ export default function WalletBalance() {
           setBalance(tokenBalance.value.uiAmountString);
         }
 
-        // Fetch transactions if test wallet is connected
+        // Fetch transactions only if TEST_CONNECTED_WALLET is specifically used for display purposes
+        // If not using the test wallet, transaction fetching is handled by the useEffect below
         if (publicKey && publicKey.toBase58() === TEST_CONNECTED_WALLET) {
           await fetchAllSignatures();
         }
@@ -162,6 +168,19 @@ export default function WalletBalance() {
 
     fetchBalance();
   }, [publicKey, connection]);
+
+  // Separate useEffect to fetch signatures for the TEST_DISPLAY_BALANCE_FOR_WALLET when no wallet is connected
+  useEffect(() => {
+    if (!publicKey && TEST_DISPLAY_BALANCE_FOR_WALLET) {
+      fetchAllSignatures();
+    } else if (publicKey) {
+      // Only fetch if a real wallet is connected or the TEST_CONNECTED_WALLET is used
+      if (publicKey.toBase58() !== TEST_CONNECTED_WALLET) {
+         fetchAllSignatures();
+      }
+    }
+  }, [publicKey, connection, TEST_DISPLAY_BALANCE_FOR_WALLET]); // Re-run when wallet connection or test wallet changes
+
 
   // Reset transactions when wallet disconnects
   useEffect(() => {

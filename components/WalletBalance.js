@@ -514,6 +514,7 @@ export default function WalletBalance() {
   };
 
   return (
+
     <div className="bg-dark-brown rounded-xl shadow-lg p-6 w-full max-w-xl mx-auto border border-gold mb-6">
       <div className="flex justify-center mb-4">
         <button

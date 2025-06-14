@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
+import { FaCopy } from 'react-icons/fa';
 
 const MINT_ADDRESS = 'BnNFoHtJRaV1grpDxLWm8rhhDRt4vC9arpVGgcCYpump';
 const HOLDERS_PER_PAGE = 10;
@@ -78,10 +79,31 @@ export default function CommunityStats() {
 
   if (loading) {
     return (
-      <div className="bg-dark-brown rounded-xl shadow-lg p-6 w-full max-w-xl mx-auto text-center border border-gold mt-6">
-        <div className="animate-pulse">
-          <div className="h-4 bg-dark-red/30 rounded w-3/4 mx-auto mb-4"></div>
-          <div className="h-4 bg-dark-red/30 rounded w-1/2 mx-auto"></div>
+      <div className="bg-dark-brown rounded-xl shadow-lg p-6 w-full max-w-xl mx-auto text-center border border-gold mt-6 animate-pulse">
+        <div className="h-8 bg-gray-700 w-1/2 mx-auto mb-6 rounded"></div>
+        
+        {/* Holder Statistics Skeletons */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="bg-dark-red/30 p-3 rounded-lg h-20"></div>
+          <div className="bg-dark-red/30 p-3 rounded-lg h-20"></div>
+          <div className="bg-dark-red/30 p-3 rounded-lg h-20"></div>
+        </div>
+
+        {/* Top Holders List Skeleton */}
+        <div>
+          <div className="h-6 bg-gray-700 w-1/3 mx-auto mb-3 rounded"></div>
+          <div className="space-y-2 mb-4">
+            {[...Array(HOLDERS_PER_PAGE)].map((_, i) => (
+              <div key={i} className="bg-dark-red/30 p-2 rounded-lg flex justify-between items-center h-10"></div>
+            ))}
+          </div>
+
+          {/* Pagination Skeleton */}
+          <div className="flex justify-center gap-2 mt-4">
+            <div className="h-8 w-20 bg-gray-700 rounded"></div>
+            <div className="h-8 w-24 bg-gray-600 rounded"></div>
+            <div className="h-8 w-20 bg-gray-700 rounded"></div>
+          </div>
         </div>
       </div>
     );
@@ -139,20 +161,7 @@ export default function CommunityStats() {
                       onClick={() => handleCopy(holder.owner)}
                       className="text-gold hover:text-light-gold transition-colors relative"
                     >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                      </svg>
+                      <FaCopy className="h-4 w-4" />
                       {copiedAddress === holder.owner && (
                         <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-dark-red text-gold px-2 py-1 rounded text-xs whitespace-nowrap">
                           Copied!

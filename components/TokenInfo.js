@@ -2,8 +2,33 @@
 
 import { useState } from 'react';
 
-export default function TokenInfo({ token }) {
+export default function TokenInfo({ token, isLoading }) {
   const [copied, setCopied] = useState(false);
+
+  if (isLoading) {
+    return (
+      <div className="bg-dark-brown rounded-xl shadow-lg p-6 w-full max-w-xl mx-auto text-center border border-gold animate-pulse">
+        <div className="relative">
+          <div className="w-32 h-32 mx-auto mb-4 bg-gray-700 rounded-full"></div>
+          <div className="absolute -top-2 -right-2 bg-gray-600 px-2 py-1 rounded-full text-xs font-bold w-12 h-5"></div>
+        </div>
+        
+        <div className="h-8 bg-gray-700 w-3/4 mx-auto mb-2 rounded"></div>
+        <div className="h-6 bg-gray-600 w-1/2 mx-auto mb-6 rounded"></div>
+        <div className="h-4 bg-gray-500 w-full mx-auto mb-6 rounded"></div>
+
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="bg-dark-red/30 p-3 rounded-lg h-20"></div>
+          <div className="bg-dark-red/30 p-3 rounded-lg h-20"></div>
+        </div>
+
+        <div className="flex items-center justify-center gap-2">
+          <div className="h-4 bg-gray-600 w-1/3 rounded"></div>
+          <div className="h-4 w-4 bg-gray-600 rounded"></div>
+        </div>
+      </div>
+    );
+  }
 
   if (!token) return <p className="text-red-500">Token data unavailable</p>;
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey, Transaction } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync, createTransferInstruction } from '@solana/spl-token';
+import { FaCopy, FaPaperPlane, FaSpinner } from 'react-icons/fa';
 
 const MINT_ADDRESS = 'BnNFoHtJRaV1grpDxLWm8rhhDRt4vC9arpVGgcCYpump'; // Your Bull Token Mint Address
 const TOKEN_DECIMALS = 9; // Assuming 9 decimals for your token, adjust if different
@@ -199,65 +200,79 @@ export default function WalletBalance() {
     }
   }, [currentPage, transactionsPerPage, allSignatures]);
 
+  const handleCopy = (text) => {
+    navigator.clipboard.writeText(text);
+    setMessage('Copied!');
+    setIsError(false);
+    setTimeout(() => setMessage(''), 2000);
+  };
+
   const handleSendTokens = async () => {
     if (!publicKey) {
-      setMessage('Please connect your wallet first.');
+      setMessage('Please connect your wallet to send tokens.');
       setIsError(true);
       return;
     }
+
     if (!recipient || !amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-      setMessage('Please enter a valid recipient address and a positive amount.');
+      setMessage('Please enter a valid recipient address and amount.');
       setIsError(true);
       return;
     }
 
     setSending(true);
-    setMessage('');
+    setMessage('Sending tokens...');
     setIsError(false);
 
     try {
-      const mintPublicKey = new PublicKey(MINT_ADDRESS);
       const recipientPublicKey = new PublicKey(recipient);
+      const mintPublicKey = new PublicKey(MINT_ADDRESS);
 
       const fromTokenAccount = getAssociatedTokenAddressSync(
         mintPublicKey,
-        publicKey
-      );
-      const toTokenAccount = getAssociatedTokenAddressSync(
-        mintPublicKey,
-        recipientPublicKey
+        publicKey,
+        true
       );
 
-      const fromAccountInfo = await connection.getAccountInfo(fromTokenAccount);
-      if (!fromAccountInfo) {
-        setMessage('You do not have an associated token account for Bull Token.');
+      const toTokenAccount = getAssociatedTokenAddressSync(
+        mintPublicKey,
+        recipientPublicKey,
+        true
+      );
+
+      // Ensure the recipient's associated token account exists
+      const recipientAccountInfo = await connection.getAccountInfo(toTokenAccount);
+      if (!recipientAccountInfo) {
+        // Optionally, create the associated token account for the recipient
+        // if it doesn't exist. This usually requires the recipient to pay for rent.
+        // For simplicity, we're assuming it exists or will be created externally.
+        setMessage('Recipient token account does not exist. Please ensure the recipient has interacted with the token.');
         setIsError(true);
         setSending(false);
         return;
       }
 
-      const transferInstruction = createTransferInstruction(
-        fromTokenAccount,
-        toTokenAccount,
-        publicKey,
-        parseFloat(amount) * (10 ** TOKEN_DECIMALS)
+      const transaction = new Transaction().add(
+        createTransferInstruction(
+          fromTokenAccount,
+          toTokenAccount,
+          publicKey,
+          parseFloat(amount) * Math.pow(10, TOKEN_DECIMALS)
+        )
       );
 
       const { blockhash } = await connection.getLatestBlockhash();
-
-      const transaction = new Transaction().add(transferInstruction);
-      transaction.feePayer = publicKey;
       transaction.recentBlockhash = blockhash;
+      transaction.feePayer = publicKey;
 
-      const signature = await sendTransaction(transaction, connection, { skipPreflight: false });
+      const signature = await sendTransaction(transaction, connection);
+      await connection.confirmTransaction(signature, 'processed');
 
-      setMessage(`Transaction sent: ${signature}`);
+      setMessage(`Tokens sent successfully! Transaction: ${signature.slice(0, 8)}...`);
+      setRecipient('');
       setAmount('');
-      // Refresh transactions after sending
-      if (publicKey.toBase58() === TEST_CONNECTED_WALLET) {
-        await fetchAllSignatures();
-        setCurrentPage(1);
-      }
+      // Re-fetch balance and transactions after successful send
+      await fetchAllSignatures();
     } catch (error) {
       console.error("Error sending tokens:", error);
       setMessage(`Failed to send tokens: ${error.message}`);
@@ -267,237 +282,281 @@ export default function WalletBalance() {
     }
   };
 
-  const filteredTransactions = transactions.filter(tx => {
-    const searchLower = searchQuery.toLowerCase();
-    return (
-      tx.signature.toLowerCase().includes(searchLower) ||
-      tx.amount.toString().includes(searchLower) ||
-      new Date(tx.timestamp * 1000).toLocaleString().toLowerCase().includes(searchLower)
-    );
-  });
-
   const renderTabContent = () => {
-    switch (activeTab) {
-      case 'dashboard':
+    if (activeTab === 'dashboard') {
+      if (loading) {
         return (
-          <div className="bg-dark-brown rounded-xl shadow-lg p-6 w-full max-w-xl mx-auto text-center border border-gold">
-            <h3 className="text-xl font-bold text-gold mb-2">Your Bull Token Balance</h3>
-            <p className="text-warm-gray text-sm mb-2">
-              {publicKey ? `Connected: ${publicKey.toString().slice(0, 4)}...${publicKey.toString().slice(-4)}` : 'Connect wallet to see your balance.'}
-            </p>
-
-            {loading ? (
-              <p className="text-warm-gray">Loading token data...</p>
-            ) : (
-              <p className="text-2xl font-semibold text-light-gold">{balance} BULL</p>
-            )}
+          <div className="animate-pulse">
+            <div className="bg-gray-700 h-8 w-1/2 mx-auto mb-4 rounded"></div>
+            <div className="bg-gray-600 h-6 w-1/3 mx-auto mb-6 rounded"></div>
+            <div className="bg-dark-red/30 p-4 rounded-lg h-32 mb-6"></div>
+            <div className="bg-dark-red/30 p-4 rounded-lg h-40"></div>
           </div>
         );
+      }
 
-      case 'transfers':
-        return (
-          <div className="bg-dark-brown rounded-xl shadow-lg p-6 w-full max-w-xl mx-auto border border-gold">
-            {loadingTransactions ? (
-              <p className="text-warm-gray text-center">Loading transfers...</p>
-            ) : (
-              <>
-                <div className="flex justify-between items-center mb-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-warm-gray">Show</span>
-                    <select
-                      value={transactionsPerPage}
-                      onChange={(e) => {
-                        setTransactionsPerPage(Number(e.target.value));
-                        setCurrentPage(1);
-                      }}
-                      className="bg-dark-brown border border-gold text-light-gold rounded-md px-2 py-1 text-sm focus:outline-none focus:border-gold"
-                    >
-                      {PAGE_SIZE_OPTIONS.map(size => (
-                        <option key={size} value={size}>{size}</option>
-                      ))}
-                    </select>
-                    <span className="text-warm-gray">per page</span>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Search transfers..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="bg-dark-brown border border-gold text-light-gold rounded-md pl-8 pr-4 py-1 text-sm focus:outline-none focus:border-gold w-48"
-                    />
-                    <svg
-                      className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-warm-gray"
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </div>
-                </div>
-                {filteredTransactions.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full bg-transparent text-warm-gray">
-                      <thead>
-                        <tr className="border-b border-gold">
-                          <th className="py-2 px-4 text-left text-light-gold">Date</th>
-                          <th className="py-2 px-4 text-left text-light-gold">Amount</th>
-                          <th className="py-2 px-4 text-left text-light-gold">Link</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredTransactions.map((tx) => (
-                          <tr key={tx.signature} className="border-b border-warm-gray/30 hover:bg-dark-red/20 transition">
-                            <td className="py-2 px-4 text-sm">
-                              {tx.timestamp ? new Date(tx.timestamp * 1000).toLocaleString().split(', ')[0] : 'N/A'}
-                            </td>
-                            <td className="py-2 px-4 text-sm font-semibold text-light-gold">
-                              {tx.amount} BULL
-                            </td>
-                            <td className="py-2 px-4 text-sm">
-                              <a href={tx.link} target="_blank" rel="noopener noreferrer" className="text-gold hover:underline">
-                                View
-                              </a>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="text-warm-gray text-center mt-4">No recent transfers found</p>
-                )}
-                
-                <div className="flex items-center justify-center gap-4 mt-4">
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                    className={`p-2 rounded-md font-semibold ${
-                      currentPage === 1
-                        ? 'bg-warm-gray text-dark-brown cursor-not-allowed'
-                        : 'bg-dark-red text-light-gold hover:bg-gold hover:text-dark-brown'
-                    }`}
-                    aria-label="Previous page"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                  <div className="flex items-center gap-2">
-                    <span className="text-warm-gray">Page</span>
-                    <select
-                      value={currentPage}
-                      onChange={(e) => setCurrentPage(Number(e.target.value))}
-                      className="bg-dark-brown border border-gold text-light-gold rounded-md px-2 py-1 text-sm focus:outline-none focus:border-gold"
-                    >
-                      {Array.from({ length: Math.ceil(totalTransactions / transactionsPerPage) }, (_, i) => i + 1).map(page => (
-                        <option key={page} value={page}>{page}</option>
-                      ))}
-                    </select>
-                    <span className="text-warm-gray">of {Math.ceil(totalTransactions / transactionsPerPage)}</span>
-                  </div>
-                  <button
-                    onClick={() => setCurrentPage(prev => prev + 1)}
-                    disabled={currentPage >= Math.ceil(totalTransactions / transactionsPerPage)}
-                    className={`p-2 rounded-md font-semibold ${
-                      currentPage >= Math.ceil(totalTransactions / transactionsPerPage)
-                        ? 'bg-warm-gray text-dark-brown cursor-not-allowed'
-                        : 'bg-dark-red text-light-gold hover:bg-gold hover:text-dark-brown'
-                    }`}
-                    aria-label="Next page"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
-              </>
-            )}
+      const walletAddressToDisplay = publicKey ? publicKey.toBase58() : TEST_DISPLAY_BALANCE_FOR_WALLET;
+
+      return (
+        <div className="space-y-6">
+          {publicKey ? (
+            <h3 className="text-xl font-semibold text-gold text-center">
+              Connected: {publicKey.toBase58().slice(0, 4)}...{publicKey.toBase58().slice(-4)}
+            </h3>
+          ) : (
+            <h3 className="text-xl font-semibold text-warm-gray text-center">
+              No wallet connected. Displaying data for test wallet:
+              <span className="ml-2 text-gold flex items-center justify-center">
+                {TEST_DISPLAY_BALANCE_FOR_WALLET.slice(0, 4)}...{TEST_DISPLAY_BALANCE_FOR_WALLET.slice(-4)}
+                <button
+                  onClick={() => handleCopy(TEST_DISPLAY_BALANCE_FOR_WALLET)}
+                  className="ml-2 text-gold hover:text-light-gold transition-colors"
+                  title="Copy wallet address"
+                >
+                  <FaCopy className="h-4 w-4" />
+                </button>
+              </span>
+            </h3>
+          )}
+          
+          <div className="bg-dark-red/30 p-4 rounded-lg border border-gold/50">
+            <h4 className="text-lg font-semibold text-light-gold mb-2">Your BULL Balance</h4>
+            <p className="text-3xl font-bold text-gold">{balance !== null ? balance : 'Loading...'}</p>
           </div>
-        );
 
-      case 'send':
-        return (
-          <div className="bg-dark-brown rounded-xl shadow-lg p-6 w-full max-w-xl mx-auto border border-gold">
-            <h3 className="text-xl font-bold text-gold mb-4 text-center">Send Bull Tokens</h3>
+          {/* Send Tokens Section */}
+          <div className="bg-dark-red/30 p-4 rounded-lg border border-gold/50">
+            <h4 className="text-lg font-semibold text-light-gold mb-4">Send BULL Tokens</h4>
             <div className="space-y-4">
-              <input
-                type="text"
-                placeholder="Recipient Wallet Address"
-                className="w-full p-2 border border-warm-gray bg-transparent text-light-gold placeholder-warm-gray rounded-md text-sm outline-none focus:border-gold transition"
-                value={recipient}
-                onChange={(e) => setRecipient(e.target.value)}
-              />
-              <input
-                type="number"
-                placeholder="Amount"
-                className="w-full p-2 border border-warm-gray bg-transparent text-light-gold placeholder-warm-gray rounded-md text-sm outline-none focus:border-gold transition"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
+              <div>
+                <label htmlFor="recipient" className="block text-sm font-medium text-warm-gray mb-1">Recipient Address</label>
+                <input
+                  type="text"
+                  id="recipient"
+                  value={recipient}
+                  onChange={(e) => setRecipient(e.target.value)}
+                  placeholder="Enter recipient wallet address"
+                  className="w-full p-2 rounded-md bg-dark-brown border border-gold/50 text-light-gold placeholder-warm-gray focus:outline-none focus:ring-2 focus:ring-gold"
+                />
+              </div>
+              <div>
+                <label htmlFor="amount" className="block text-sm font-medium text-warm-gray mb-1">Amount</label>
+                <input
+                  type="number"
+                  id="amount"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="Enter amount of BULL"
+                  className="w-full p-2 rounded-md bg-dark-brown border border-gold/50 text-light-gold placeholder-warm-gray focus:outline-none focus:ring-2 focus:ring-gold"
+                  min="0"
+                  step="any"
+                />
+              </div>
               <button
                 onClick={handleSendTokens}
-                disabled={sending || !publicKey}
-                className={`w-full py-2 px-4 rounded-md font-bold transition ${
-                  sending || !publicKey 
-                    ? 'bg-warm-gray text-dark-brown cursor-not-allowed' 
-                    : 'bg-dark-red text-light-gold hover:bg-gold hover:text-dark-brown'
-                }`}
+                className="w-full bg-gold text-dark-brown py-2 rounded-md font-semibold hover:bg-light-gold transition-colors flex items-center justify-center gap-2"
+                disabled={sending}
               >
+                {sending ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}
                 {sending ? 'Sending...' : 'Send Tokens'}
               </button>
+              {message && (
+                <p className={`text-center text-sm ${isError ? 'text-red-400' : 'text-green-400'}`}>{message}</p>
+              )}
             </div>
-            {message && (
-              <p className={`mt-4 text-sm ${isError ? 'text-red-400' : 'text-green-400'}`}>{message}</p>
-            )}
+          </div>
+        </div>
+      );
+    } else if (activeTab === 'transfers') {
+      if (loadingTransactions) {
+        return (
+          <div className="animate-pulse">
+            <div className="bg-gray-700 h-8 w-1/3 mb-4 rounded"></div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-dark-brown rounded-lg shadow-md">
+                <thead>
+                  <tr>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-warm-gray uppercase tracking-wider"><div className="h-4 bg-gray-600 rounded w-2/3"></div></th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-warm-gray uppercase tracking-wider"><div className="h-4 bg-gray-600 rounded w-1/2"></div></th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-warm-gray uppercase tracking-wider"><div className="h-4 bg-gray-600 rounded w-2/3"></div></th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-warm-gray uppercase tracking-wider"><div className="h-4 bg-gray-600 rounded w-1/3"></div></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gold/20">
+                  {[...Array(transactionsPerPage)].map((_, i) => (
+                    <tr key={i}>
+                      <td className="py-3 px-4 whitespace-nowrap text-sm text-light-gold"><div className="h-4 bg-gray-700 rounded w-3/4"></div></td>
+                      <td className="py-3 px-4 whitespace-nowrap text-sm text-warm-gray"><div className="h-4 bg-gray-700 rounded w-1/2"></div></td>
+                      <td className="py-3 px-4 whitespace-nowrap text-sm text-warm-gray"><div className="h-4 bg-gray-700 rounded w-2/3"></div></td>
+                      <td className="py-3 px-4 whitespace-nowrap text-sm text-gold"><div className="h-4 bg-gray-700 rounded w-1/3"></div></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex justify-between items-center mt-4">
+              <div className="h-8 bg-gray-700 rounded w-1/4"></div>
+              <div className="h-8 bg-gray-700 rounded w-1/4"></div>
+              <div className="h-8 bg-gray-700 rounded w-1/4"></div>
+            </div>
           </div>
         );
+      }
 
-      default:
-        return null;
+      const totalPages = Math.ceil(totalTransactions / transactionsPerPage);
+      const startIndex = (currentPage - 1) * transactionsPerPage;
+      const endIndex = Math.min(startIndex + transactionsPerPage, totalTransactions);
+      const currentRangeText = totalTransactions === 0 ? "0" : `${startIndex + 1}-${endIndex}`;
+
+      // Filter transactions based on search query
+      const filteredTransactions = transactions.filter(tx => 
+        tx.signature.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+
+      return (
+        <div className="space-y-4">
+          <h3 className="text-2xl font-bold text-gold text-center mb-4">Recent Transfers</h3>
+
+          <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
+            <input
+              type="text"
+              placeholder="Search by signature..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full sm:w-1/2 p-2 rounded-md bg-dark-brown border border-gold/50 text-light-gold placeholder-warm-gray focus:outline-none focus:ring-2 focus:ring-gold"
+            />
+            <div className="flex items-center gap-2">
+              <label htmlFor="transactionsPerPage" className="text-warm-gray text-sm">Show:</label>
+              <select
+                id="transactionsPerPage"
+                value={transactionsPerPage}
+                onChange={(e) => setTransactionsPerPage(Number(e.target.value))}
+                className="bg-dark-brown border border-gold/50 text-light-gold rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-gold"
+              >
+                {PAGE_SIZE_OPTIONS.map(size => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {filteredTransactions.length === 0 && !loadingTransactions ? (
+            <p className="text-warm-gray text-center">No transfers found.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-dark-brown rounded-lg shadow-md">
+                <thead>
+                  <tr>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-warm-gray uppercase tracking-wider">Signature</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-warm-gray uppercase tracking-wider">Date</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-warm-gray uppercase tracking-wider">Amount</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-warm-gray uppercase tracking-wider">Link</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gold/20">
+                  {filteredTransactions.map((tx) => (
+                    <tr key={tx.signature} className="hover:bg-dark-red/20 transition-colors">
+                      <td className="py-3 px-4 whitespace-nowrap text-sm text-light-gold">
+                        {tx.signature.slice(0, 4)}...{tx.signature.slice(-4)}
+                        <button
+                          onClick={() => handleCopy(tx.signature)}
+                          className="ml-2 text-gold hover:text-light-gold transition-colors"
+                          title="Copy transaction signature"
+                        >
+                          <FaCopy className="h-3 w-3" />
+                        </button>
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap text-sm text-warm-gray">
+                        {tx.timestamp ? new Date(tx.timestamp * 1000).toLocaleDateString('en-US') + ' ' + new Date(tx.timestamp * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap text-sm text-warm-gray">
+                        {tx.amount}
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap text-sm text-gold">
+                        <a href={tx.link} target="_blank" rel="noopener noreferrer" className="hover:underline">View</a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex justify-between items-center mt-4">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="bg-gold text-dark-brown px-4 py-2 rounded-md font-semibold hover:bg-light-gold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Previous
+              </button>
+              <span className="text-warm-gray text-sm">
+                Page {currentPage} of {totalPages} ({currentRangeText} of {totalTransactions} transfers)
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="bg-gold text-dark-brown px-4 py-2 rounded-md font-semibold hover:bg-light-gold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          )}
+
+          {message && (
+            <p className={`text-center text-sm ${isError ? 'text-red-400' : 'text-green-400'}`}>{message}</p>
+          )}
+        </div>
+      );
     }
   };
 
   return (
-    <div className="w-full max-w-xl mx-auto mt-6">
-      <div className="flex border-b border-gold mb-6">
+    <div className="bg-dark-brown rounded-xl shadow-lg p-6 w-full max-w-xl mx-auto border border-gold mb-6">
+      <div className="flex justify-center mb-4">
         <button
+          className={`px-6 py-2 rounded-l-lg font-semibold transition-colors ${activeTab === 'dashboard' ? 'bg-gold text-dark-brown' : 'bg-dark-red/50 text-warm-gray hover:bg-dark-red/70'}`}
           onClick={() => setActiveTab('dashboard')}
-          className={`flex-1 py-2 px-4 text-center font-semibold ${
-            activeTab === 'dashboard'
-              ? 'text-gold border-b-2 border-gold'
-              : 'text-warm-gray hover:text-light-gold'
-          }`}
         >
           Dashboard
         </button>
         <button
+          className={`px-6 py-2 rounded-r-lg font-semibold transition-colors ${activeTab === 'transfers' ? 'bg-gold text-dark-brown' : 'bg-dark-red/50 text-warm-gray hover:bg-dark-red/70'}`}
           onClick={() => setActiveTab('transfers')}
-          className={`flex-1 py-2 px-4 text-center font-semibold ${
-            activeTab === 'transfers'
-              ? 'text-gold border-b-2 border-gold'
-              : 'text-warm-gray hover:text-light-gold'
-          }`}
         >
-          Transfers
-        </button>
-        <button
-          onClick={() => setActiveTab('send')}
-          className={`flex-1 py-2 px-4 text-center font-semibold ${
-            activeTab === 'send'
-              ? 'text-gold border-b-2 border-gold'
-              : 'text-warm-gray hover:text-light-gold'
-          }`}
-        >
-          Send
+          Transfers ({totalTransactions})
         </button>
       </div>
       {renderTabContent()}
+      <style jsx global>{`
+        /* For Webkit browsers (Chrome, Safari) */
+        .overflow-x-auto::-webkit-scrollbar {
+          height: 8px;
+        }
+
+        .overflow-x-auto::-webkit-scrollbar-track {
+          background: #1a0f0f; /* Dark brown background */
+          border-radius: 10px;
+        }
+
+        .overflow-x-auto::-webkit-scrollbar-thumb {
+          background: #D4AF37; /* Gold thumb */
+          border-radius: 10px;
+          border: 2px solid #1a0f0f; /* Dark brown border */
+        }
+
+        .overflow-x-auto::-webkit-scrollbar-thumb:hover {
+          background: #e6b840; /* Lighter gold on hover */
+        }
+
+        /* For Firefox */
+        .overflow-x-auto {
+          scrollbar-width: thin; /* "auto" or "none" */
+          scrollbar-color: #D4AF37 #1a0f0f; /* thumb color track color */
+        }
+      `}</style>
     </div>
   );
 } 

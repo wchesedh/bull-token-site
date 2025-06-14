@@ -91,7 +91,7 @@ export default function HomePage() {
               </div>
             ) : (
               <>
-                <TokenInfo token={tokenData} />
+                <TokenInfo token={tokenData} isLoading={loading} />
                 <WalletBalance />
                 <CommunityStats />
               </>

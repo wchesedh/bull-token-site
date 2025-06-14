@@ -32,28 +32,32 @@ export default function CommunityStats() {
         setLoading(true);
         setError(null);
 
-        // Get token data from our API
         const tokenRes = await fetch('/api/get-token');
         if (!tokenRes.ok) {
-          throw new Error('Failed to fetch token data');
+          throw new Error(`Failed to fetch token data: ${tokenRes.statusText}`);
         }
         const tokenData = await tokenRes.json();
-        console.log('Token data:', tokenData); // Debug log
+        console.log('API Token data received:', tokenData); // Debug log for API response
 
         if (!tokenData.allHolders) {
-          throw new Error('No holder data available');
+          throw new Error('No holder data available from API');
         }
 
-        // Sort holders by amount
-        const sortedHolders = [...tokenData.allHolders].sort(
-          (a, b) => parseFloat(b.uiAmount) - parseFloat(a.uiAmount)
-        );
+        // Filter out the Token Program ID if it somehow slipped through (redundant but safe)
+        const filteredAndSortedHolders = [...tokenData.allHolders]
+          .filter(holder => holder.owner !== 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' && parseFloat(holder.uiAmount) > 0)
+          .sort((a, b) => parseFloat(b.uiAmount) - parseFloat(a.uiAmount));
 
         setStats({
-          totalHolders: tokenData.holders || 0,
-          newHolders24h: Math.floor((tokenData.holders || 0) * 0.1),
-          activeHolders24h: Math.floor((tokenData.holders || 0) * 0.3),
-          allHolders: sortedHolders
+          totalHolders: filteredAndSortedHolders.length || 0,
+          newHolders24h: Math.floor((filteredAndSortedHolders.length || 0) * 0.1), // Placeholder
+          activeHolders24h: Math.floor((filteredAndSortedHolders.length || 0) * 0.3), // Placeholder
+          allHolders: filteredAndSortedHolders
+        });
+        console.log('CommunityStats state updated:', { // Debug log for component state
+          totalHolders: filteredAndSortedHolders.length || 0,
+          allHoldersCount: filteredAndSortedHolders.length,
+          firstFiveHolders: filteredAndSortedHolders.slice(0, 5)
         });
       } catch (error) {
         console.error('Error fetching community stats:', error);
@@ -129,10 +133,10 @@ export default function CommunityStats() {
                 <div key={index} className="bg-dark-red/30 p-2 rounded-lg flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <span className="text-warm-gray text-sm">
-                      {holder.address.slice(0, 4)}...{holder.address.slice(-4)}
+                      {holder.owner.slice(0, 4)}...{holder.owner.slice(-4)}
                     </span>
                     <button
-                      onClick={() => handleCopy(holder.address)}
+                      onClick={() => handleCopy(holder.owner)}
                       className="text-gold hover:text-light-gold transition-colors relative"
                     >
                       <svg
@@ -149,7 +153,7 @@ export default function CommunityStats() {
                         <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                       </svg>
-                      {copiedAddress === holder.address && (
+                      {copiedAddress === holder.owner && (
                         <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-dark-red text-gold px-2 py-1 rounded text-xs whitespace-nowrap">
                           Copied!
                         </span>

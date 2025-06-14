@@ -85,7 +85,7 @@ export default function WalletBalance() {
           });
           return {
             signature: sig.signature,
-            timestamp: sig.blockTime,
+            timestamp: tx?.blockTime,
             amount: tx?.meta?.postTokenBalances?.[0]?.uiTokenAmount?.uiAmount || 0,
             link: `https://solscan.io/tx/${sig.signature}?cluster=mainnet`
           };
@@ -131,7 +131,7 @@ export default function WalletBalance() {
           setBalance(tokenBalance.value.uiAmountString);
         }
 
-        // Fetch transactions if test wallet is connected
+        // Fetch transfers if test wallet is connected
         if (publicKey && publicKey.toBase58() === TEST_CONNECTED_WALLET) {
           await fetchAllSignatures();
         }
@@ -259,13 +259,13 @@ export default function WalletBalance() {
           </div>
         );
 
-      case 'transactions':
+      case 'transfers':
         return (
           <div className="bg-dark-brown rounded-xl shadow-lg p-6 w-full max-w-xl mx-auto border border-gold">
-            <h3 className="text-xl font-bold text-gold mb-4 text-center">Recent Bull Token Transactions</h3>
+            <h3 className="text-xl font-bold text-gold mb-4 text-center">Recent Bull Token Transfers</h3>
             {loadingTransactions ? (
-              <p className="text-warm-gray text-center">Loading transactions...</p>
-            ) : transactions.length > 0 ? (
+              <p className="text-warm-gray text-center">Loading transfers...</p>
+            ) : filteredTransactions.length > 0 ? (
               <>
                 <div className="flex justify-between items-center mb-4">
                   <div className="flex items-center gap-2">
@@ -287,7 +287,7 @@ export default function WalletBalance() {
                   <div className="relative">
                     <input
                       type="text"
-                      placeholder="Search transactions..."
+                      placeholder="Search transfers..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="bg-dark-brown border border-gold text-light-gold rounded-md pl-8 pr-4 py-1 text-sm focus:outline-none focus:border-gold w-48"
@@ -379,8 +379,21 @@ export default function WalletBalance() {
                 </div>
               </>
             ) : (
-              <p className="text-warm-gray text-center">No recent transactions found</p>
+              <p className="text-warm-gray text-center">No recent transfers found</p>
             )}
+          </div>
+        );
+
+      case 'transactions':
+        return (
+          <div className="bg-dark-brown rounded-xl shadow-lg p-6 w-full max-w-xl mx-auto border border-gold text-center">
+            <h3 className="text-xl font-bold text-gold mb-4">All Wallet Transactions</h3>
+            <p className="text-warm-gray mb-4">
+              This tab will display all your wallet's transactions (not just token transfers).
+            </p>
+            <p className="text-sm text-warm-gray">
+              (Feature under development. Fetching all transactions from the blockchain is resource-intensive and may require a dedicated backend service for optimal performance.)
+            </p>
           </div>
         );
 
@@ -428,33 +441,35 @@ export default function WalletBalance() {
 
   return (
     <div className="w-full max-w-xl mx-auto mt-6">
-      <div className="flex border-b border-gold mb-6">
+      <div className="flex justify-center border-b border-gold mb-4">
         <button
           onClick={() => setActiveTab('dashboard')}
-          className={`flex-1 py-2 px-4 text-center font-semibold ${
-            activeTab === 'dashboard'
-              ? 'text-gold border-b-2 border-gold'
-              : 'text-warm-gray hover:text-light-gold'
+          className={`px-4 py-2 text-sm font-semibold ${
+            activeTab === 'dashboard' ? 'text-gold border-b-2 border-gold' : 'text-warm-gray hover:text-light-gold'
           }`}
         >
           Dashboard
         </button>
         <button
+          onClick={() => setActiveTab('transfers')}
+          className={`px-4 py-2 text-sm font-semibold ${
+            activeTab === 'transfers' ? 'text-gold border-b-2 border-gold' : 'text-warm-gray hover:text-light-gold'
+          }`}
+        >
+          Transfers
+        </button>
+        <button
           onClick={() => setActiveTab('transactions')}
-          className={`flex-1 py-2 px-4 text-center font-semibold ${
-            activeTab === 'transactions'
-              ? 'text-gold border-b-2 border-gold'
-              : 'text-warm-gray hover:text-light-gold'
+          className={`px-4 py-2 text-sm font-semibold ${
+            activeTab === 'transactions' ? 'text-gold border-b-2 border-gold' : 'text-warm-gray hover:text-light-gold'
           }`}
         >
           Transactions
         </button>
         <button
           onClick={() => setActiveTab('send')}
-          className={`flex-1 py-2 px-4 text-center font-semibold ${
-            activeTab === 'send'
-              ? 'text-gold border-b-2 border-gold'
-              : 'text-warm-gray hover:text-light-gold'
+          className={`px-4 py-2 text-sm font-semibold ${
+            activeTab === 'send' ? 'text-gold border-b-2 border-gold' : 'text-warm-gray hover:text-light-gold'
           }`}
         >
           Send

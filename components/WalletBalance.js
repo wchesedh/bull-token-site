@@ -64,8 +64,8 @@ export default function WalletBalance() {
       let hasMore = true;
 
       while (hasMore) {
-        const signatures = await connection.getSignaturesForAddress(
-          associatedTokenAccount,
+      const signatures = await connection.getSignaturesForAddress(
+        associatedTokenAccount,
           { limit: 1000, before: lastSig }
         );
 
@@ -254,9 +254,9 @@ export default function WalletBalance() {
 
       const transaction = new Transaction().add(
         createTransferInstruction(
-          fromTokenAccount,
-          toTokenAccount,
-          publicKey,
+        fromTokenAccount,
+        toTokenAccount,
+        publicKey,
           parseFloat(amount) * Math.pow(10, TOKEN_DECIMALS)
         )
       );
@@ -272,7 +272,7 @@ export default function WalletBalance() {
       setRecipient('');
       setAmount('');
       // Re-fetch balance and transactions after successful send
-      await fetchAllSignatures();
+        await fetchAllSignatures();
     } catch (error) {
       console.error("Error sending tokens:", error);
       setMessage(`Failed to send tokens: ${error.message}`);
@@ -425,36 +425,36 @@ export default function WalletBalance() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full sm:w-1/2 p-2 rounded-md bg-dark-brown border border-gold/50 text-light-gold placeholder-warm-gray focus:outline-none focus:ring-2 focus:ring-gold"
             />
-            <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2">
               <label htmlFor="transactionsPerPage" className="text-warm-gray text-sm">Show:</label>
-              <select
+                    <select
                 id="transactionsPerPage"
-                value={transactionsPerPage}
+                      value={transactionsPerPage}
                 onChange={(e) => setTransactionsPerPage(Number(e.target.value))}
                 className="bg-dark-brown border border-gold/50 text-light-gold rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-gold"
-              >
-                {PAGE_SIZE_OPTIONS.map(size => (
-                  <option key={size} value={size}>{size}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+                    >
+                      {PAGE_SIZE_OPTIONS.map(size => (
+                        <option key={size} value={size}>{size}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
 
           {filteredTransactions.length === 0 && !loadingTransactions ? (
             <p className="text-warm-gray text-center">No transfers found.</p>
           ) : (
-            <div className="overflow-x-auto">
+                <div className="overflow-x-auto">
               <table className="min-w-full bg-dark-brown rounded-lg shadow-md">
-                <thead>
+                    <thead>
                   <tr>
                     <th className="py-3 px-4 text-left text-xs font-medium text-warm-gray uppercase tracking-wider">Signature</th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-warm-gray uppercase tracking-wider">Date</th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-warm-gray uppercase tracking-wider">Amount</th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-warm-gray uppercase tracking-wider">Link</th>
-                  </tr>
-                </thead>
+                      </tr>
+                    </thead>
                 <tbody className="divide-y divide-gold/20">
-                  {filteredTransactions.map((tx) => (
+                      {filteredTransactions.map((tx) => (
                     <tr key={tx.signature} className="hover:bg-dark-red/20 transition-colors">
                       <td className="py-3 px-4 whitespace-nowrap text-sm text-light-gold">
                         {tx.signature.slice(0, 4)}...{tx.signature.slice(-4)}
@@ -468,30 +468,30 @@ export default function WalletBalance() {
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap text-sm text-warm-gray">
                         {tx.timestamp ? new Date(tx.timestamp * 1000).toLocaleDateString('en-US') + ' ' + new Date(tx.timestamp * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
-                      </td>
+                          </td>
                       <td className="py-3 px-4 whitespace-nowrap text-sm text-warm-gray">
                         {tx.amount}
-                      </td>
+                          </td>
                       <td className="py-3 px-4 whitespace-nowrap text-sm text-gold">
                         <a href={tx.link} target="_blank" rel="noopener noreferrer" className="hover:underline">View</a>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
           )}
 
           {/* Pagination Controls */}
           {totalPages > 1 && (
             <div className="flex justify-between items-center mt-4">
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
                 className="bg-gold text-dark-brown px-4 py-2 rounded-md font-semibold hover:bg-light-gold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Previous
-              </button>
+                  </button>
               <span className="text-warm-gray text-sm">
                 Page {currentPage} of {totalPages} ({currentRangeText} of {totalTransactions} transfers)
               </span>
@@ -505,11 +505,11 @@ export default function WalletBalance() {
             </div>
           )}
 
-          {message && (
+            {message && (
             <p className={`text-center text-sm ${isError ? 'text-red-400' : 'text-green-400'}`}>{message}</p>
-          )}
-        </div>
-      );
+            )}
+          </div>
+        );
     }
   };
 

@@ -123,7 +123,7 @@ export default function CommunityStats() {
 
       {/* Token Holders */}
       <div>
-        <h3 className="text-lg font-semibold text-gold mb-3">Token Holders</h3>
+        <h3 className="text-lg font-semibold text-gold mb-3">Top Holders</h3>
         {currentHolders.length === 0 ? (
           <div className="text-warm-gray">No holders found</div>
         ) : (

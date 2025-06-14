@@ -98,7 +98,7 @@ export default function HomePage() {
 
           {/* Right Sidebar: Bull Token Ecosystem */}
           <div className="hidden md:block p-4 bg-dark-brown rounded-xl shadow-lg space-y-4">
-            <h3 className="text-xl font-bold text-gold mb-4">Bull Token Ecosystem</h3>
+            <h3 className="text-xl font-bold text-gold mb-4">Bullisch Ecosystem</h3>
 
             {/* Airdrop Card */}
             <div className="bg-dark-red/30 p-3 rounded-lg border border-gold/50 flex items-center space-x-3">
